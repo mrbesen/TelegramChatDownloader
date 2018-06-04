@@ -1,23 +1,13 @@
 #!/usr/bin/env python3
 from telethon import TelegramClient, events
 from datetime import timedelta
+import configparser
 import sys
+import os
 
-# EDIT HERE ↓
-api_id = api_id
-api_hash = 'api_hash'
-workers = 4
-session_name = 'user_name'
-# EDIT HERE ↑
-
-def printDialog(d):
-  print (d.id, " ", d.name," ", d.pinned)
-
-def findDialog(dialogs, id):
-  for d in dialogs:
-    if d.id == id:
-      return d
-  return None
+def printDialog(id , d):
+#  print (d.id, " ", d.name," ", d.pinned)
+  print('{0:2d} | {1:14d} | {2:30} | {3:1}'.format(id, d.id,d.name,d.pinned))
 
 def saveMessage(message, file, dlid, ownid):
 #  print(message)
@@ -39,6 +29,10 @@ def saveMessage(message, file, dlid, ownid):
   file.write('  </message>\n')
   return out
 
+def createFolder(path):
+  if not os.path.exists(path):
+    os.makedirs(path)
+
 class DelayedDownload:
   """A class to store the data, for other methods to download media later"""
   message=None
@@ -46,6 +40,22 @@ class DelayedDownload:
   def __init__(self, _id, msg):
     self.id = _id
     self.message = msg
+
+
+#==================================
+#MAIN program
+
+#read config
+try:
+  config = configparser.ConfigParser()
+  config.read('config.ini')
+  api_id = int(config.get('Main','api_id'))
+  api_hash = config.get('Main','api_hash')
+  workers = int(config.get('Main','workers'))
+  session_name = config.get('Main','user')
+except (configparser.NoSectionError, configparser.NoOptionError, ValueError):
+  print('invalid config.ini')
+  exit(3)
 
 # create connection
 client = TelegramClient(session_name, api_id, api_hash, update_workers=workers, spawn_read_thread=True)
@@ -57,22 +67,44 @@ dialogs = client.get_dialogs(limit=100)
 
 print ("chats loaded. (" , len(dialogs), ")")
 #print chats
+id = 0
+
+#table header
+print ('ID | Internal ID    | Username                       | pinned\n———+————————————————+————————————————————————————————+———————')
+#content
 for d in dialogs:
-  printDialog(d)
+  printDialog(id,d)
+  id = id+1
 get = int(input("Please Enter Chat ID: "))
-selectedDialog = findDialog(dialogs, get)
-if selectedDialog == None:
+if get < 0 or get >= id:
   print ("Unknown Chat ID!")
-  exit(1)
+  exit(1) 
+
+selectedDialog = dialogs[get]
 
 print ("selected: ", selectedDialog.name, 'retriving chat!')
 
 chat = client.get_messages(selectedDialog, limit=2000000)
 print("retrived ", len(chat), " Messages.")
 
-toDL = []#list of messages, where media should be downloaded
+toDL = []#list of DelayedDownload
 
-fout = open('out/chat.xml','x')
+createFolder('out/')
+
+while True:
+  try:
+    fout = open('out/chat.xml','x')
+    break
+  except FileExistsError:
+    get = input("Override out/chat.xml [y/n]?")
+    if get == 'y' or get == 'Y':
+      #delete
+      os.remove('out/chat.xml')
+    elif get == 'n' or get == 'N':
+      #exit
+      print ("Bye.")
+      exit(2)
+
 fout.write('<chat>\n')
 for c in chat:
   dl = saveMessage(c, fout, len(toDL),me.id)
@@ -83,6 +115,7 @@ for c in chat:
 fout.write('</chat>\n')
 fout.close()
 
+createFolder('out/media/')
 print('Chat structure stored. Downloading Media - this may take a while!')
 for dl in toDL:
   print ('.', end='')

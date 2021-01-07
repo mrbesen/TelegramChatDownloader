@@ -1,4 +1,4 @@
-# THIS REPO IS CONTINUED [HERE](http://mrbesen.de:3000/MrBesen/TelegramChatDownloader)
+# THIS REPO IS DISCONTINUED [HERE IS THE LAST VERSION](https://git.mrbesen.de/MrBesen/TelegramChatDownloader)
 
 
 
